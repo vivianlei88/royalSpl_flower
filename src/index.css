@@ -1,0 +1,142 @@
+/* stylelint-disable */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Royalspl Florist — Minimal Gallery Design System */
+
+@font-face {
+  font-family: 'Montserrat';
+  src: url('https://resource-static.bj.bcebos.com/fonts/Montserrat-VariableFont_wght.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0rem;
+
+    /* Warm off-white gallery palette */
+    --background: 36 33% 97%;        /* #FAF8F5 warm off-white */
+    --foreground: 0 0% 10%;          /* #1A1A1A charcoal */
+    --card: 33 27% 95%;              /* #F3EFEA warm cream card */
+    --card-foreground: 0 0% 10%;
+    --popover: 36 33% 97%;
+    --popover-foreground: 0 0% 10%;
+
+    /* Primary: muted sage — used only for CTAs & active states */
+    --primary: 150 8% 35%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: warm taupe */
+    --secondary: 33 27% 92%;
+    --secondary-foreground: 0 0% 10%;
+
+    --muted: 33 20% 93%;
+    --muted-foreground: 0 0% 42%;    /* #6B6B6B */
+
+    /* Accent: dusty rose */
+    --accent: 345 22% 58%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 30 18% 87%;            /* #E5E0DA */
+    --input: 30 18% 87%;
+    --ring: 0 0% 10%;
+
+    --chart-1: 150 8% 35%;
+    --chart-2: 345 22% 58%;
+    --chart-3: 36 60% 68%;
+    --chart-4: 0 0% 42%;
+    --chart-5: 33 27% 92%;
+
+    --sidebar-background: 36 33% 97%;
+    --sidebar-foreground: 0 0% 10%;
+    --sidebar-primary: 150 8% 35%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 33 27% 92%;
+    --sidebar-accent-foreground: 0 0% 10%;
+    --sidebar-border: 30 18% 87%;
+    --sidebar-ring: 150 8% 35%;
+
+    --font-sans: 'Montserrat', system-ui, sans-serif;
+    --font-serif: Georgia, 'Times New Roman', serif;
+  }
+
+  .dark {
+    --background: 0 0% 8%;
+    --foreground: 36 20% 92%;
+    --card: 0 0% 11%;
+    --card-foreground: 36 20% 92%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 36 20% 92%;
+    --primary: 150 8% 55%;
+    --primary-foreground: 0 0% 8%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 36 20% 92%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 345 22% 48%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 36 20% 92%;
+    --chart-1: 150 8% 55%;
+    --chart-2: 345 22% 48%;
+    --chart-3: 36 60% 60%;
+    --chart-4: 0 0% 60%;
+    --chart-5: 0 0% 15%;
+    --sidebar-background: 0 0% 8%;
+    --sidebar-foreground: 36 20% 92%;
+    --sidebar-primary: 150 8% 55%;
+    --sidebar-primary-foreground: 0 0% 8%;
+    --sidebar-accent: 0 0% 15%;
+    --sidebar-accent-foreground: 36 20% 92%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 150 8% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+}
+
+@layer utilities {
+  /* Serif heading utility for elegant Chinese + English display */
+  .font-serif-display {
+    font-family: var(--font-serif);
+    font-style: italic;
+  }
+
+  /* English small caps utility for section subtitles */
+  .font-label-en {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+  }
+}

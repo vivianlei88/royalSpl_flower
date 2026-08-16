@@ -1,0 +1,63 @@
+# wrangler.toml — Royalspl Florist Cloudflare Worker
+# 使用方法：
+#   1. 安裝 wrangler：npm install -g wrangler
+#   2. 登入：wrangler login
+#   3. 部署：wrangler deploy
+#
+# ⚠️ 所有私密憑證（STRIPE_SECRET_KEY 等）已存於 Cloudflare Dashboard 環境變數
+#    本文件不含任何敏感密鑰，可安全推送 Git
+
+name = "royalspl-worker"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ── 帳戶設定（從 Cloudflare Dashboard 右上角複製 Account ID）──────────────────
+# account_id = "your_account_id_here"   # 取消註解並填入您的 Account ID
+
+# ── 生產環境路由（綁定到您的域名）─────────────────────────────────────────────
+routes = [
+  { pattern = "royalspl.shop/stripe/*", zone_name = "royalspl.shop" },
+  { pattern = "royalspl.shop/api/*", zone_name = "royalspl.shop" },
+]
+
+# ── 環境變數（非私密，可寫在此）──────────────────────────────────────────────
+[vars]
+SITE_URL = "https://royalspl.shop"
+ENVIRONMENT = "production"
+
+# ── Secrets（私密憑證）說明 ────────────────────────────────────────────────────
+# 以下 secrets 已在 Cloudflare Dashboard 設定，無需在此填寫：
+#   STRIPE_SECRET_KEY          → sk_live_...
+#   STRIPE_WEBHOOK_SECRET      → whsec_...
+#   SUPABASE_URL               → https://oqxppwunatpdivykuwxk.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY  → eyJ...
+#   R2_ACCESS_KEY_ID           → 已設定
+#   R2_SECRET_ACCESS_KEY       → 已設定
+#   GENINI_ACCESS_KEY          → 已設定
+#   WHATSAPP_TOKEN             → Meta WhatsApp Business API Token（新增）
+#   WHATSAPP_PHONE_NUMBER_ID   → WhatsApp Business Phone Number ID（新增）
+#   OWNER_WHATSAPP             → 店主 WhatsApp 號碼，如 85291234567
+#
+# 設定指令（在終端依次執行）：
+#   wrangler secret put WHATSAPP_TOKEN
+#   wrangler secret put WHATSAPP_PHONE_NUMBER_ID
+#   wrangler secret put OWNER_WHATSAPP
+
+# ── R2 Storage 綁定 ──────────────────────────────────────────────────────────
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "royalspl-images"
+# preview_bucket_name = "royalspl-images-preview"  # 本地開發用
+
+# ── 開發環境設定 ──────────────────────────────────────────────────────────────
+[dev]
+port = 8787
+local_protocol = "http"
+
+# ── 生產部署指令快速參考 ──────────────────────────────────────────────────────
+# wrangler deploy                    # 部署到生產
+# wrangler dev                       # 本地開發
+# wrangler tail                      # 實時查看 Worker 日誌
+# wrangler secret list               # 查看已設定的 secrets
+# wrangler deployments list          # 查看部署歷史
