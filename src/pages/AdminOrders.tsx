@@ -72,20 +72,49 @@ export default function AdminOrders() {
   const [orderLogs, setOrderLogs] = useState<OrderLog[]>([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isLogLoading, setIsLogLoading] = useState(false);
+  // 即時通知 badge：未讀新訂單/付款數
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    // 监听实时查询
+    // 訂閱 orders 表 INSERT（新訂單）+ UPDATE（付款狀態變更）
     const ordersSubscription = supabase
-      .channel("public:orders")
+      .channel("admin:orders-realtime")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "orders" },
         (payload) => {
-          const newOrder: any = payload.new;
-          toast.success(`收到新訂單：${newOrder.customer_name}`, {
-            description: `訂單金額：HK$${newOrder.total_amount}`,
+          const newOrder = payload.new as Order;
+          setUnreadCount((c) => c + 1);
+          toast.success(`🌸 收到新訂單！`, {
+            description: `${newOrder.customer_name}  ·  HK$${Number(newOrder.total_amount).toLocaleString()}`,
+            duration: 6000,
+            action: {
+              label: "查看",
+              onClick: () => setUnreadCount(0),
+            },
           });
-          loadData(); // reload to get items
+          // 直接插入到列表頂部，避免重新 fetch
+          setOrders((prev) => [newOrder, ...prev.filter((o) => o.id !== newOrder.id)]);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders" },
+        (payload) => {
+          const updated = payload.new as Order;
+          const old = payload.old as Partial<Order>;
+          // 付款狀態從 unpaid → paid 時提示
+          if (old.payment_status !== "paid" && updated.payment_status === "paid") {
+            setUnreadCount((c) => c + 1);
+            toast.success(`✅ 付款已確認`, {
+              description: `${updated.customer_name}  ·  HK$${Number(updated.total_amount).toLocaleString()}`,
+              duration: 6000,
+            });
+          }
+          // 就地更新訂單狀態，不需要重新 fetch
+          setOrders((prev) =>
+            prev.map((o) => (o.id === updated.id ? { ...o, ...updated } : o))
+          );
         }
       )
       .subscribe();
@@ -361,9 +390,23 @@ export default function AdminOrders() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">訂單管理</h1>
-          <p className="text-muted-foreground">管理客戶訂單與付款狀態</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">訂單管理</h1>
+            <p className="text-muted-foreground">管理客戶訂單與付款狀態</p>
+          </div>
+          {unreadCount > 0 && (
+            <button
+              onClick={() => setUnreadCount(0)}
+              className="relative flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary hover:bg-primary/20 transition-colors"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+              </span>
+              {unreadCount} 則新通知
+            </button>
+          )}
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <Popover>
