@@ -72,11 +72,18 @@ export async function getSiteContent(): Promise<Record<string, string>> {
   }, {});
 }
 
-export async function getCategories(): Promise<Category[]> {
-  const { data, error } = await supabase
+export async function getCategories(activeOnly = true): Promise<Category[]> {
+  let query = supabase
     .from('categories')
     .select('*')
-    .order('sort_order', { ascending: true });
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+
+  if (activeOnly) {
+    query = query.eq('is_active', true);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('讀取分類失敗：', error);

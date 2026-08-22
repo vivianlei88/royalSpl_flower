@@ -1,75 +1,39 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, ShoppingCart, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
-import { getCategories } from '@/services/api';
-import { Category } from '@/types/types';
+import { useCategories } from '@/hooks/useCategories';
+import type { Category } from '@/types/types';
 
-/* 全屏導航抽屜靜態導航結構 */
-const staticNav = [
+/* 靜態導航結構（節慶場合保持靜態；花材種類由 DB 動態注入） */
+const STATIC_OCCASIONS = [
   {
-    zh: '所有花藝',
-    en: 'THE COLLECTION',
-    href: '/products',
-    children: [],
-  },
-  {
-    zh: '節慶場合',
-    en: 'OCCASIONS',
-    href: '/festival-occasions',
-    children: [
-      {
-        group: '節慶場合',
-        items: [
-          { name: '情人節', slug: 'valentines-day' },
-          { name: '母親節', slug: 'mothers-day' },
-          { name: '中秋節', slug: 'mid-autumn' },
-          { name: '清明節', slug: 'ching-ming' },
-          { name: '畢業季', slug: 'graduation' },
-          { name: '端午', slug: 'dragon-boat' },
-          { name: '聖誕', slug: 'christmas' },
-        ],
-      },
-      {
-        group: '生活場景',
-        items: [
-          { name: '生日', slug: 'birthday' },
-          { name: '週年', slug: 'anniversary' },
-          { name: '婚禮', slug: 'wedding' },
-          { name: '彌月', slug: 'baby-shower' },
-          { name: '探病', slug: 'get-well' },
-          { name: '帛事', slug: 'condolence' },
-          { name: '開張', slug: 'opening' },
-          { name: '喬遷', slug: 'housewarming' },
-          { name: '商務送禮', slug: 'corporate-gift' },
-          { name: '企業周年', slug: 'corporate-anniversary' },
-        ],
-      },
+    group: '節慶場合',
+    items: [
+      { name: '情人節', slug: 'valentines-day' },
+      { name: '母親節', slug: 'mothers-day' },
+      { name: '中秋節', slug: 'mid-autumn' },
+      { name: '清明節', slug: 'ching-ming' },
+      { name: '畢業季', slug: 'graduation' },
+      { name: '端午', slug: 'dragon-boat' },
+      { name: '聖誕', slug: 'christmas' },
     ],
   },
   {
-    zh: '花材種類',
-    en: 'FLOWER TYPES',
-    href: '/products?category=flower-types',
-    children: [
-      {
-        group: '花材',
-        items: [
-          { name: '玫瑰', slug: 'roses' },
-          { name: '鬱金香', slug: 'tulips' },
-          { name: '芍藥（牡丹）', slug: 'peonies' },
-          { name: '荷花', slug: 'lotus' },
-          { name: '進口鮮花', slug: 'imported-flowers' },
-        ],
-      },
+    group: '生活場景',
+    items: [
+      { name: '生日', slug: 'birthday' },
+      { name: '週年', slug: 'anniversary' },
+      { name: '婚禮', slug: 'wedding' },
+      { name: '彌月', slug: 'baby-shower' },
+      { name: '探病', slug: 'get-well' },
+      { name: '帛事', slug: 'condolence' },
+      { name: '開張', slug: 'opening' },
+      { name: '喬遷', slug: 'housewarming' },
+      { name: '商務送禮', slug: 'corporate-gift' },
+      { name: '企業周年', slug: 'corporate-anniversary' },
     ],
-  },
-  {
-    zh: '訂閱花禮',
-    en: 'SUBSCRIPTIONS',
-    href: '/products?category=subscriptions',
-    children: [],
   },
 ];
 
@@ -82,8 +46,63 @@ export function Header() {
   const location = useLocation();
   const isAdmin = profile?.role === 'admin';
 
+  // 從 DB 動態讀取啟用分類
+  const { mainCategories, getChildren, loading: catLoading } = useCategories();
+
   // 登入連結攜帶當前路徑，登入後跳回原頁
   const loginHref = `/login?redirect=${encodeURIComponent(location.pathname + location.search)}`;
+
+  // 動態組建 navLinks，保留版面結構不變
+  const navItems = useMemo(() => {
+    // 頂層分類（有圖or無圖皆顯示）
+    const dbTopLevel = mainCategories;
+
+    // 找訂閱花禮分類（slug 含 subscription）
+    const subscriptionCat = dbTopLevel.find((c) =>
+      c.slug.toLowerCase().includes('subscri') || c.name.includes('訂閱')
+    );
+
+    return [
+      {
+        zh: '所有花藝',
+        en: 'THE COLLECTION',
+        href: '/products',
+        children: [] as { group: string; items: { name: string; slug: string }[] }[],
+      },
+      {
+        zh: '節慶場合',
+        en: 'OCCASIONS',
+        href: '/festival-occasions',
+        children: STATIC_OCCASIONS,
+      },
+      {
+        zh: '所有分類',
+        en: 'CATEGORIES',
+        href: '/products',
+        // 動態生成：後台所有頂層分類作為一組子項目
+        children:
+          catLoading || dbTopLevel.length === 0
+            ? []
+            : [
+                {
+                  group: '商品分類',
+                  items: dbTopLevel.map((c) => ({ name: c.name, slug: c.slug })),
+                },
+              ],
+      },
+      {
+        zh: '訂閱花禮',
+        en: 'SUBSCRIPTIONS',
+        href: subscriptionCat ? `/products?category=${subscriptionCat.slug}` : '/products?category=subscriptions',
+        children: subscriptionCat
+          ? getChildren(subscriptionCat.id).map((child) => ({
+              group: '訂閱方案',
+              items: [{ name: child.name, slug: child.slug }],
+            }))
+          : [],
+      },
+    ];
+  }, [mainCategories, catLoading, getChildren]);
 
   /* 打開全屏菜單時禁止頁面捲動 */
   useEffect(() => {
@@ -184,7 +203,7 @@ export function Header() {
           {/* 導航列表 */}
           <div className="container mx-auto px-6 md:px-16 py-12 md:py-20">
             <div className="flex flex-col divide-y divide-border max-w-4xl">
-              {staticNav.map((item, idx) => (
+              {navItems.map((item, idx) => (
                 <div key={idx}>
                   {item.children.length > 0 ? (
                     /* 有子項目：可展開 */
@@ -215,7 +234,7 @@ export function Header() {
                     </Link>
                   )}
 
-                  {/* 展開子分類 */}
+                  {/* 展開子分類（動態注入，保留版面結構） */}
                   {item.children.length > 0 && expandedIdx === idx && (
                     <div className="pb-8 pl-2 md:pl-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-2xl">

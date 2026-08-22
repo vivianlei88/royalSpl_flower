@@ -7,6 +7,7 @@ import type { Product } from '@/types/types';
 import PageMeta from '@/components/common/PageMeta';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from 'sonner';
+import { useCategories } from '@/hooks/useCategories';
 
 const HERO_IMAGE = 'https://miaoda-site-img.s3cdn.medo.dev/images/KLing_313dfd45-39ef-478c-b334-13e4b564d227.jpg';
 // 臻選系列三分類圖片
@@ -19,6 +20,8 @@ export default function Home() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const { addToCart } = useCart();
+  // 動態分類（臻選系列三欄）
+  const { mainCategories, loading: catLoading } = useCategories();
 
   useEffect(() => {
     async function loadData() {
@@ -38,13 +41,28 @@ export default function Home() {
   const heroImage = content.hero_image || HERO_IMAGE;
   const heroLink = content.hero_link || '/products';
 
-  // 臻選系列 — 三分類
-  const cat1Image = content.col_french_image || FRENCH_IMAGE;
-  const cat1Link  = content.col_french_link  || '/products?tag=法式自然風';
-  const cat2Image = content.col_preserved_image || PRESERVED_IMAGE;
-  const cat2Link  = content.col_preserved_link  || '/products?tag=日式永生花';
-  const cat3Image = content.col_bridal_image || BRIDAL_IMAGE;
-  const cat3Link  = content.col_bridal_link  || '/products?tag=新娘花禮';
+  // 臻選系列 — 動態取前3個有圖片的頂層分類，回退靜態值
+  const catsWithImage = mainCategories.filter((c) => c.image_url);
+  const displayCats = catsWithImage.length >= 3
+    ? catsWithImage.slice(0, 3)
+    : mainCategories.slice(0, 3); // 無圖片時也顯示
+
+  // Fallback 靜態值（API 失敗或分類不足時使用）
+  const fallbackCats = [
+    { name: '法式自然風', nameEn: 'FRENCH NATURAL STYLE', image: content.col_french_image || FRENCH_IMAGE, link: content.col_french_link || '/products?tag=法式自然風' },
+    { name: '日式永生花', nameEn: 'JAPANESE PRESERVED FLOWER', image: content.col_preserved_image || PRESERVED_IMAGE, link: content.col_preserved_link || '/products?tag=日式永生花' },
+    { name: '新娘花禮', nameEn: 'BRIDAL FLORAL GIFT', image: content.col_bridal_image || BRIDAL_IMAGE, link: content.col_bridal_link || '/products?tag=新娘花禮' },
+  ];
+
+  // 最終三欄資料：DB 有足夠分類就用 DB，否則用靜態 fallback
+  const threeCols = !catLoading && displayCats.length >= 3
+    ? displayCats.map((c) => ({
+        name: c.name,
+        nameEn: c.name.toUpperCase(),
+        image: c.image_url || FRENCH_IMAGE,
+        link: `/products?category=${c.slug}`,
+      }))
+    : fallbackCats;
 
   const aboutText = content.about_text || '我們是一家香港本地花藝工作室，致力以最純粹的花材創作細膩而優雅的花藝作品，每一束花皆傾注工匠精神。';
   const aboutLink = content.about_link || '/contact';
@@ -106,79 +124,52 @@ export default function Home() {
           </span>
         </div>
 
-        {/* 三欄錯落畫廊：左高 → 中下移 → 右高，對應參考圖版型 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 items-start">
-
-          {/* ── 欄 1：法式自然風 ── */}
-          <div className="flex flex-col gap-4 opacity-0 intersect:opacity-100 transition duration-700">
-            <Link to={cat1Link} className="group block overflow-hidden bg-muted aspect-[3/4] w-full">
-              <img
-                src={cat1Image}
-                alt="法式自然風"
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-              />
-            </Link>
-            <div>
-              <p className="font-label-en text-muted-foreground text-[11px] tracking-widest mb-1.5">
-                FRENCH NATURAL STYLE
-              </p>
-              <h3 className="font-serif-display text-2xl text-foreground leading-tight">法式自然風</h3>
-              <Link
-                to={cat1Link}
-                className="inline-block mt-3 text-xs text-muted-foreground border-b border-current pb-0.5 hover:text-foreground transition-colors"
-              >
-                瀏覽系列
-              </Link>
-            </div>
+        {/* 三欄錯落畫廊：左高 → 中下移 → 右高 */}
+        {catLoading ? (
+          /* Skeleton 骨架屏 */
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 items-start">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className={`flex flex-col gap-4 ${i === 1 ? 'md:translate-y-16' : ''}`}>
+                <div className={`bg-muted animate-pulse w-full ${i === 1 ? 'aspect-[4/5]' : 'aspect-[3/4]'}`} />
+                <div className="space-y-2">
+                  <div className="h-3 w-1/2 bg-muted animate-pulse" />
+                  <div className="h-6 w-2/3 bg-muted animate-pulse" />
+                </div>
+              </div>
+            ))}
           </div>
-
-          {/* ── 欄 2：日式永生花（向下偏移，對應參考圖中欄效果） ── */}
-          <div className="flex flex-col gap-4 md:translate-y-16 opacity-0 intersect:opacity-100 transition duration-700 delay-150">
-            <Link to={cat2Link} className="group block overflow-hidden bg-muted aspect-[4/5] w-full">
-              <img
-                src={cat2Image}
-                alt="日式永生花"
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-              />
-            </Link>
-            <div>
-              <p className="font-label-en text-muted-foreground text-[11px] tracking-widest mb-1.5">
-                JAPANESE PRESERVED FLOWER
-              </p>
-              <h3 className="font-serif-display text-2xl text-foreground leading-tight">日式永生花</h3>
-              <Link
-                to={cat2Link}
-                className="inline-block mt-3 text-xs text-muted-foreground border-b border-current pb-0.5 hover:text-foreground transition-colors"
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 items-start">
+            {threeCols.map((col, i) => (
+              <div
+                key={col.link}
+                className={`flex flex-col gap-4 opacity-0 intersect:opacity-100 transition duration-700 ${
+                  i === 1 ? 'md:translate-y-16 delay-150' : i === 2 ? 'delay-300' : ''
+                }`}
               >
-                瀏覽系列
-              </Link>
-            </div>
+                <Link to={col.link} className={`group block overflow-hidden bg-muted w-full ${i === 1 ? 'aspect-[4/5]' : 'aspect-[3/4]'}`}>
+                  <img
+                    src={col.image}
+                    alt={col.name}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                </Link>
+                <div>
+                  <p className="font-label-en text-muted-foreground text-[11px] tracking-widest mb-1.5">
+                    {col.nameEn}
+                  </p>
+                  <h3 className="font-serif-display text-2xl text-foreground leading-tight">{col.name}</h3>
+                  <Link
+                    to={col.link}
+                    className="inline-block mt-3 text-xs text-muted-foreground border-b border-current pb-0.5 hover:text-foreground transition-colors"
+                  >
+                    瀏覽系列
+                  </Link>
+                </div>
+              </div>
+            ))}
           </div>
-
-          {/* ── 欄 3：新娘花禮 ── */}
-          <div className="flex flex-col gap-4 opacity-0 intersect:opacity-100 transition duration-700 delay-300">
-            <Link to={cat3Link} className="group block overflow-hidden bg-muted aspect-[3/4] w-full">
-              <img
-                src={cat3Image}
-                alt="新娘花禮"
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-              />
-            </Link>
-            <div>
-              <p className="font-label-en text-muted-foreground text-[11px] tracking-widest mb-1.5">
-                BRIDAL FLORAL GIFT
-              </p>
-              <h3 className="font-serif-display text-2xl text-foreground leading-tight">新娘花禮</h3>
-              <Link
-                to={cat3Link}
-                className="inline-block mt-3 text-xs text-muted-foreground border-b border-current pb-0.5 hover:text-foreground transition-colors"
-              >
-                瀏覽系列
-              </Link>
-            </div>
-          </div>
-
-        </div>
+        )}
       </section>
 
       {/* ─── 精選花藝 2×3 Grid ─── */}

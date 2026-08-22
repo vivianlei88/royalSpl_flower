@@ -19,6 +19,7 @@ export interface Category {
   description: string | null;
   sort_order: number;
   parent_id: string | null;
+  is_active: boolean;
   created_at: string;
 }
 
