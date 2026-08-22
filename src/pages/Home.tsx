@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getSiteContent, getProducts } from '@/services/api';
+import { getSiteContent, getProducts, getPublishedHomepageConfig } from '@/services/api';
 import type { Product } from '@/types/types';
 import PageMeta from '@/components/common/PageMeta';
 import { useCart } from '@/contexts/CartContext';
@@ -22,30 +22,67 @@ export default function Home() {
   const { addToCart } = useCart();
   // 動態分類（臻選系列三欄）
   const { mainCategories, loading: catLoading } = useCategories();
+  // 已發布首頁 JSON 配置
+  const [heroConfig, setHeroConfig] = useState<{
+    title: string; subtitle: string; ctaText: string; ctaLink: string;
+    image: string; titleAlign: 'left'|'center'|'right';
+    overlayOpacity: number; titleColor: string; subtitleColor: string;
+    ctaColor: string; ctaBg: string;
+  } | null>(null);
 
   useEffect(() => {
     async function loadData() {
-      const [siteContent, products] = await Promise.all([
+      const [siteContent, products, publishedConfig] = await Promise.all([
         getSiteContent(),
         getProducts({ featured: true }),
+        getPublishedHomepageConfig(),
       ]);
       setContent(siteContent);
       setFeaturedProducts(products);
+
+      // 從已發布 JSON config 提取 Hero 資料
+      if (publishedConfig?.config?.sections) {
+        const hero = publishedConfig.config.sections.find((s: any) => s.type === 'hero');
+        if (hero?.data) {
+          const d = hero.data;
+          setHeroConfig({
+            title: d.title || 'Royalspl Florist Hong Kong',
+            subtitle: d.subtitle || '每一束花皆為一件會呼吸的雕塑。',
+            ctaText: d.ctaText || '探索花藝',
+            ctaLink: d.ctaLink || '/products',
+            image: d.images?.[0]?.url || HERO_IMAGE,
+            titleAlign: d.titleAlign || 'left',
+            overlayOpacity: d.overlayOpacity ?? 0.35,
+            titleColor: d.titleColor || '#ffffff',
+            subtitleColor: d.subtitleColor || '#ffffffcc',
+            ctaColor: d.ctaColor || '#ffffff',
+            ctaBg: d.ctaBg || '#000000',
+          });
+        }
+      }
       setLoading(false);
     }
     loadData();
   }, []);
 
-  const heroTitle = content.hero_title || 'Royalspl Florist Hong Kong';
-  const heroSubtitle = content.hero_subtitle || '每一束花皆為一件會呼吸的雕塑。';
-  const heroImage = content.hero_image || HERO_IMAGE;
-  const heroLink = content.hero_link || '/products';
+  // Hero 資料：優先 JSON config，fallback site_content 舊欄位
+  const heroTitle    = heroConfig?.title    ?? content.hero_title    ?? 'Royalspl Florist Hong Kong';
+  const heroSubtitle = heroConfig?.subtitle ?? content.hero_subtitle ?? '每一束花皆為一件會呼吸的雕塑。';
+  const heroImage    = heroConfig?.image    ?? content.hero_image    ?? HERO_IMAGE;
+  const heroLink     = heroConfig?.ctaLink  ?? content.hero_link     ?? '/products';
+  const heroCtaText  = heroConfig?.ctaText  ?? '探索花藝';
+  const heroAlign    = heroConfig?.titleAlign ?? 'left';
+  const heroOverlay  = heroConfig?.overlayOpacity ?? 0.35;
+  const heroTitleColor    = heroConfig?.titleColor    ?? '#ffffff';
+  const heroSubtitleColor = heroConfig?.subtitleColor ?? '#ffffffcc';
+  const heroCtaColor      = heroConfig?.ctaColor      ?? '#ffffff';
+  const heroCtaBg         = heroConfig?.ctaBg         ?? '#000000';
 
   // 臻選系列 — 動態取前3個有圖片的頂層分類，回退靜態值
   const catsWithImage = mainCategories.filter((c) => c.image_url);
   const displayCats = catsWithImage.length >= 3
     ? catsWithImage.slice(0, 3)
-    : mainCategories.slice(0, 3); // 無圖片時也顯示
+    : mainCategories.slice(0, 3);
 
   // Fallback 靜態值（API 失敗或分類不足時使用）
   const fallbackCats = [
@@ -54,7 +91,6 @@ export default function Home() {
     { name: '新娘花禮', nameEn: 'BRIDAL FLORAL GIFT', image: content.col_bridal_image || BRIDAL_IMAGE, link: content.col_bridal_link || '/products?tag=新娘花禮' },
   ];
 
-  // 最終三欄資料：DB 有足夠分類就用 DB，否則用靜態 fallback
   const threeCols = !catLoading && displayCats.length >= 3
     ? displayCats.map((c) => ({
         name: c.name,
@@ -66,6 +102,8 @@ export default function Home() {
 
   const aboutText = content.about_text || '我們是一家香港本地花藝工作室，致力以最純粹的花材創作細膩而優雅的花藝作品，每一束花皆傾注工匠精神。';
   const aboutLink = content.about_link || '/contact';
+
+  const heroAlignClass = { left: 'items-start text-left', center: 'items-center text-center', right: 'items-end text-right' }[heroAlign];
 
   function handleAddToCart(product: Product) {
     addToCart(product, 1);
@@ -79,34 +117,33 @@ export default function Home() {
         description="Royalspl Florist Hong Kong — 香港高端鮮花網店，提供精選花藝、即日送花及訂閱花禮服務。"
       />
 
-      {/* ─── Hero Section ─── */}
+      {/* ─── Hero Section（動態讀取已發布 JSON config）─── */}
       <section className="relative w-full min-h-[80vh] flex items-end overflow-hidden bg-muted">
         <img
           src={heroImage}
           alt="Royalspl Florist Hong Kong — Hero"
           className="absolute inset-0 w-full h-full object-cover"
         />
-        {/* 底部漸層遮罩 */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A]/70 via-[#1A1A1A]/20 to-transparent" />
+        {/* 可調遮罩濃度 */}
+        <div className="absolute inset-0 bg-black" style={{ opacity: heroOverlay }} />
 
-        <div className="relative z-10 container mx-auto px-4 pb-16 md:pb-24 md:px-8">
-          <div
-            className="max-w-2xl opacity-0 intersect:opacity-100 transition duration-1000"
-          >
-            <p className="font-label-en text-white/70 mb-4 text-xs">HONG KONG FLORAL ATELIER</p>
-            <h1 className="font-serif-display text-4xl md:text-6xl lg:text-7xl text-white leading-[1.1] tracking-tight mb-6">
+        <div className={`relative z-10 container mx-auto px-4 pb-16 md:pb-24 md:px-8 flex flex-col ${heroAlignClass}`}>
+          <div className="max-w-2xl opacity-0 intersect:opacity-100 transition duration-1000">
+            <p className="font-label-en text-xs mb-4" style={{ color: heroSubtitleColor, opacity: 0.8 }}>HONG KONG FLORAL ATELIER</p>
+            <h1 className="font-serif-display text-4xl md:text-6xl lg:text-7xl leading-[1.1] tracking-tight mb-6" style={{ color: heroTitleColor }}>
               {heroTitle}
             </h1>
-            <p className="text-base md:text-lg text-white/80 mb-8 max-w-md leading-relaxed">
+            <p className="text-base md:text-lg mb-8 max-w-md leading-relaxed" style={{ color: heroSubtitleColor }}>
               {heroSubtitle}
             </p>
             <Button
               size="lg"
               asChild
-              className="bg-white text-foreground hover:bg-white/90 rounded-none px-8 py-3 font-medium tracking-wide"
+              className="rounded-none px-8 py-3 font-medium tracking-wide"
+              style={{ backgroundColor: heroCtaBg, color: heroCtaColor }}
             >
               <Link to={heroLink}>
-                探索花禮
+                {heroCtaText}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>

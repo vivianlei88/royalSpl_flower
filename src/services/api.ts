@@ -888,3 +888,109 @@ export async function batchUnbindTags(productIds: string[], tags: string[]): Pro
   }
   return true;
 }
+
+// ── 首頁版面配置 API ──
+
+/** 讀取最新草稿（後台編輯器用） */
+export async function getHomepageDraft(): Promise<HomepageConfig | null> {
+  const { data, error } = await supabase
+    .from('homepage_configs')
+    .select('*')
+    .eq('status', 'draft')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) { console.error('讀取草稿失敗:', error); return null; }
+  return data as HomepageConfig | null;
+}
+
+/** 讀取最新已發布版本（前台首頁用） */
+export async function getPublishedHomepageConfig(): Promise<HomepageConfig | null> {
+  const { data, error } = await supabase
+    .from('homepage_configs')
+    .select('*')
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) { console.error('讀取已發布配置失敗:', error); return null; }
+  return data as HomepageConfig | null;
+}
+
+/** 儲存草稿（upsert：有草稿就更新，無則新建） */
+export async function saveHomepageDraft(config: HomepageLayoutConfig): Promise<boolean> {
+  const existing = await getHomepageDraft();
+  if (existing) {
+    const { error } = await supabase
+      .from('homepage_configs')
+      .update({ config, updated_at: new Date().toISOString() })
+      .eq('id', existing.id);
+    if (error) { console.error('更新草稿失敗:', error); return false; }
+  } else {
+    const { error } = await supabase
+      .from('homepage_configs')
+      .insert({ status: 'draft', config });
+    if (error) { console.error('新建草稿失敗:', error); return false; }
+  }
+  return true;
+}
+
+/** 發布：將草稿複製為已發布（保留草稿以便後續修改） */
+export async function publishHomepageConfig(config: HomepageLayoutConfig): Promise<boolean> {
+  // 先儲存草稿
+  const saved = await saveHomepageDraft(config);
+  if (!saved) return false;
+  // 新建一條 published 記錄
+  const { error } = await supabase
+    .from('homepage_configs')
+    .insert({
+      status: 'published',
+      config,
+      published_at: new Date().toISOString(),
+    });
+  if (error) { console.error('發布失敗:', error); return false; }
+  return true;
+}
+
+export interface HomepageConfig {
+  id: string;
+  version: number;
+  status: 'draft' | 'published';
+  config: HomepageLayoutConfig;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HomepageLayoutConfig {
+  sections: HomepageSection[];
+  version: number;
+}
+
+export interface HomepageSection {
+  id: string;
+  type: 'hero';
+  sort: number;
+  data: HeroSectionData;
+}
+
+export interface HeroImage {
+  id: string;
+  url: string;
+  alt: string;
+  link: string;
+}
+
+export interface HeroSectionData {
+  images: HeroImage[];
+  title: string;
+  subtitle: string;
+  ctaText: string;
+  ctaLink: string;
+  titleAlign: 'left' | 'center' | 'right';
+  overlayOpacity: number;
+  titleColor: string;
+  subtitleColor: string;
+  ctaColor: string;
+  ctaBg: string;
+}
